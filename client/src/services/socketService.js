@@ -18,7 +18,8 @@ class SocketService {
   }
 
   connect() {
-    this.socket = io('http://localhost:5000');
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+    this.socket = io(socketUrl);
     
     this.socket.on('connect', () => {
       console.log('Connected to server');
