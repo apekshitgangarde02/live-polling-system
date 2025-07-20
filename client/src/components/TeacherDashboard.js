@@ -10,196 +10,150 @@ import Chat from './Chat';
 import PollHistory from './PollHistory';
 
 const DashboardContainer = styled.div`
+  display: flex;
+  background-color: #f8f9fa;
   min-height: 100vh;
-  padding: 20px;
 `;
 
-const Header = styled.header`
+const MainContent = styled.div`
+  flex-grow: 1;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+`;
+
+const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  margin-bottom: 40px;
 `;
 
 const Title = styled.h1`
-  color: #333;
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #333;
 `;
 
-const UserInfo = styled.div`
+const HeaderActions = styled.div`
   display: flex;
-  align-items: center;
   gap: 15px;
+  align-items: center;
 `;
 
-const UserName = styled.span`
-  font-weight: 600;
-  color: #555;
-`;
-
-const LogoutButton = styled.button`
-  background: #e74c3c;
-  color: white;
+const ViewPollHistoryButton = styled.button`
+  background: transparent;
+  color: #667eea;
+  border: 1px solid #667eea;
   padding: 10px 20px;
   border-radius: 8px;
   font-weight: 600;
   transition: all 0.2s ease;
 
   &:hover {
-    background: #c0392b;
-    transform: translateY(-2px);
+    background: #667eea;
+    color: white;
   }
 `;
 
-const MainContent = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 20px;
-  margin-bottom: 20px;
-`;
-
-const LeftPanel = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-`;
-
 const RightPanel = styled.div`
+  width: 350px;
+  background: white;
+  padding: 30px;
+  border-left: 1px solid #e1e5e9;
   display: flex;
   flex-direction: column;
   gap: 20px;
-`;
-
-const Card = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 15px;
-  padding: 25px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 `;
 
 const TabContainer = styled.div`
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+  background: #f0f2f5;
+  border-radius: 10px;
+  padding: 5px;
 `;
 
 const Tab = styled.button`
-  padding: 12px 24px;
+  flex: 1;
+  padding: 12px;
   border: none;
-  background: ${props => props.active ? '#667eea' : 'rgba(102, 126, 234, 0.1)'};
-  color: ${props => props.active ? 'white' : '#667eea'};
+  background: ${props => (props.active ? 'white' : 'transparent')};
+  color: ${props => (props.active ? '#333' : '#666')};
   border-radius: 8px;
   font-weight: 600;
   transition: all 0.2s ease;
+  box-shadow: ${props => (props.active ? '0 2px 4px rgba(0,0,0,0.1)' : 'none')};
+`;
+
+const FloatingActionButton = styled.button`
+  position: fixed;
+  bottom: 30px;
+  right: 380px; /* RightPanel width + some padding */
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  font-size: 2rem;
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+  transition: all 0.3s ease;
 
   &:hover {
-    background: ${props => props.active ? '#667eea' : 'rgba(102, 126, 234, 0.2)'};
+    transform: translateY(-3px);
   }
-`;
-
-const StatusIndicator = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  color: #666;
-`;
-
-const StatusDot = styled.div`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: ${props => props.connected ? '#27ae60' : '#e74c3c'};
 `;
 
 function TeacherDashboard() {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { activePoll, pollHistory } = useSelector((state) => state.poll);
-  const { connectedUsers } = useSelector((state) => state.user);
-  const [activeTab, setActiveTab] = useState('create');
-  const [showChat, setShowChat] = useState(false);
+  const [activeView, setActiveView] = useState('create'); // create, results, history
+  const [rightPanelTab, setRightPanelTab] = useState('chat'); // chat, participants
 
   const handleLogout = () => {
     dispatch(logout());
   };
 
-  const students = connectedUsers.filter(user => user.role === 'student');
-  const teachers = connectedUsers.filter(user => user.role === 'teacher');
+  const renderMainContent = () => {
+    if (activePoll) {
+      return <PollResults />;
+    }
+    if (activeView === 'history') {
+      return <PollHistory />;
+    }
+    return <CreatePoll />;
+  };
 
   return (
     <DashboardContainer>
-      <Header>
-        <div>
-          <Title>Teacher Dashboard</Title>
-          <StatusIndicator>
-            <StatusDot connected={true} />
-            {students.length} Students Connected
-          </StatusIndicator>
-        </div>
-        <UserInfo>
-          <UserName>Welcome, {user?.name}</UserName>
-          <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
-        </UserInfo>
-      </Header>
-
       <MainContent>
-        <LeftPanel>
-          <Card>
-            <TabContainer>
-              <Tab 
-                active={activeTab === 'create'} 
-                onClick={() => setActiveTab('create')}
-              >
-                Create Poll
-              </Tab>
-              <Tab 
-                active={activeTab === 'results'} 
-                onClick={() => setActiveTab('results')}
-              >
-                Live Results
-              </Tab>
-              <Tab 
-                active={activeTab === 'history'} 
-                onClick={() => setActiveTab('history')}
-              >
-                Poll History
-              </Tab>
-            </TabContainer>
-
-            {activeTab === 'create' && <CreatePoll />}
-            {activeTab === 'results' && <PollResults />}
-            {activeTab === 'history' && <PollHistory />}
-          </Card>
-        </LeftPanel>
-
-        <RightPanel>
-          <Card>
-            <UserList 
-              users={connectedUsers}
-              onKickUser={(userId) => socketService.kickStudent(userId)}
-            />
-          </Card>
-
-          <Card>
-            <Chat 
-              isOpen={showChat}
-              onToggle={() => setShowChat(!showChat)}
-            />
-          </Card>
-        </RightPanel>
+        <Header>
+          <Title>
+            {activeView === 'history' ? 'Poll History' : "Let's Get Started"}
+          </Title>
+          <HeaderActions>
+            <ViewPollHistoryButton onClick={() => setActiveView(activeView === 'history' ? 'create' : 'history')}>
+              {activeView === 'history' ? 'Create Poll' : 'View Poll History'}
+            </ViewPollHistoryButton>
+          </HeaderActions>
+        </Header>
+        {renderMainContent()}
       </MainContent>
+      <RightPanel>
+        <TabContainer>
+          <Tab active={rightPanelTab === 'chat'} onClick={() => setRightPanelTab('chat')}>
+            Chat
+          </Tab>
+          <Tab active={rightPanelTab === 'participants'} onClick={() => setRightPanelTab('participants')}>
+            Participants
+          </Tab>
+        </TabContainer>
+        {rightPanelTab === 'chat' && <Chat />}
+        {rightPanelTab === 'participants' && <UserList onKickUser={(userId) => socketService.kickStudent(userId)} />}
+      </RightPanel>
+      <FloatingActionButton onClick={() => console.log('Open Chat')}>
+        💬
+      </FloatingActionButton>
     </DashboardContainer>
   );
 }

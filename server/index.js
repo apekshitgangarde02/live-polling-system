@@ -70,7 +70,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const { question, options, maxTime = 60 } = pollData;
+      const { question, options, maxTime = 60, correctAnswer } = pollData;
       const pollId = uuidv4();
       
       activePoll = {
@@ -83,7 +83,8 @@ io.on('connection', (socket) => {
         maxTime: maxTime * 1000,
         createdBy: socket.id,
         answeredBy: [],
-        results: {}
+        results: {},
+        correctAnswer // Store the correct answer index
       };
 
       // Store in history right away
@@ -230,7 +231,8 @@ function endPoll(pollId) {
     const finalPoll = {
       ...activePoll,
       options: results,
-      totalVotes
+      totalVotes,
+      correctAnswer: activePoll.correctAnswer
     };
 
     // Update history with final results

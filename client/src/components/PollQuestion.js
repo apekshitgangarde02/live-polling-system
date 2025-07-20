@@ -1,190 +1,124 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { useSelector } from 'react-redux';
 import socketService from '../services/socketService';
 
-const QuestionContainer = styled.div`
-  text-align: center;
-  padding: 20px;
+const PollContainer = styled.div`
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+`;
+
+const QuestionInfo = styled.div`
+  font-size: 1rem;
+  color: #666;
+`;
+
+const Timer = styled.div`
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #e74c3c;
 `;
 
 const Question = styled.h2`
-  color: #333;
   font-size: 1.8rem;
   font-weight: 600;
   margin-bottom: 30px;
-  line-height: 1.4;
 `;
 
-const OptionsContainer = styled.div`
-  display: flex;
-  flex-direction: column;
+const OptionsGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 15px;
-  max-width: 500px;
-  margin: 0 auto;
 `;
 
-const OptionButton = styled.button`
-  background: ${props => props.selected ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white'};
-  color: ${props => props.selected ? 'white' : '#333'};
-  border: 2px solid ${props => props.selected ? 'transparent' : '#e1e5e9'};
-  padding: 20px;
-  border-radius: 12px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  text-align: left;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-    border-color: ${props => props.selected ? 'transparent' : '#667eea'};
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    z-index: -1;
-  }
-
-  &:hover::before {
-    opacity: 0.1;
-  }
-`;
-
-const OptionText = styled.span`
-  display: block;
-  margin-bottom: 5px;
-`;
-
-const OptionLetter = styled.span`
-  display: inline-block;
-  width: 30px;
-  height: 30px;
-  background: ${props => props.selected ? 'rgba(255, 255, 255, 0.2)' : 'rgba(102, 126, 234, 0.1)'};
-  color: ${props => props.selected ? 'white' : '#667eea'};
-  border-radius: 50%;
+const Option = styled.button`
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  margin-right: 15px;
-  float: left;
+  gap: 15px;
+  background: ${props => (props.selected ? '#e8eaf6' : '#f8f9fa')};
+  border: 1px solid ${props => (props.selected ? '#667eea' : '#e1e5e9')};
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 1rem;
+  text-align: left;
 `;
 
 const SubmitButton = styled.button`
-  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  width: 100%;
+  background: #667eea;
   color: white;
-  padding: 15px 40px;
+  padding: 15px;
   border-radius: 10px;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 600;
   margin-top: 30px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(39, 174, 96, 0.3);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
 `;
 
-const Instructions = styled.p`
-  color: #666;
-  font-size: 1rem;
-  margin-bottom: 30px;
-  line-height: 1.6;
-`;
-
-const ErrorMessage = styled.div`
-  color: #e74c3c;
-  font-size: 0.9rem;
-  margin-top: 15px;
-`;
-
-function PollQuestion({ poll }) {
+function PollQuestion() {
+  const { activePoll } = useSelector((state) => state.poll);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [timeLeft, setTimeLeft] = useState(60);
 
-  const handleOptionSelect = (optionIndex) => {
-    setSelectedOption(optionIndex);
-    setError('');
-  };
+  useEffect(() => {
+    if (activePoll) {
+      const remaining = Math.round((activePoll.endTime - Date.now()) / 1000);
+      setTimeLeft(remaining > 0 ? remaining : 0);
 
-  const handleSubmit = async () => {
-    if (selectedOption === null) {
-      setError('Please select an option');
-      return;
+      const interval = setInterval(() => {
+        setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+      
+      return () => clearInterval(interval);
     }
+  }, [activePoll]);
 
-    setIsSubmitting(true);
-    setError('');
-
-    try {
+  const handleSubmit = () => {
+    if (selectedOption !== null) {
       socketService.submitAnswer({ optionIndex: selectedOption });
-    } catch (err) {
-      setError('Failed to submit answer. Please try again.');
-      setIsSubmitting(false);
     }
   };
 
-  const getOptionLetter = (index) => {
-    return String.fromCharCode(65 + index); // A, B, C, D, etc.
-  };
+  if (!activePoll) return null;
 
   return (
-    <QuestionContainer>
-      <Question>{poll.question}</Question>
-      <Instructions>
-        Please select your answer from the options below. You have one chance to submit your response.
-      </Instructions>
-
-      <OptionsContainer>
-        {poll.options.map((option, index) => (
-          <OptionButton
+    <PollContainer>
+      <Header>
+        <QuestionInfo>Question 1</QuestionInfo>
+        <Timer>{timeLeft}s</Timer>
+      </Header>
+      <Question>{activePoll.question}</Question>
+      <OptionsGrid>
+        {activePoll.options.map((option, index) => (
+          <Option
             key={index}
             selected={selectedOption === index}
-            onClick={() => handleOptionSelect(index)}
-            disabled={isSubmitting}
+            onClick={() => setSelectedOption(index)}
           >
-            <OptionLetter selected={selectedOption === index}>
-              {getOptionLetter(index)}
-            </OptionLetter>
-            <OptionText>{option.text}</OptionText>
-          </OptionButton>
+            <input
+              type="radio"
+              name="poll-option"
+              checked={selectedOption === index}
+              readOnly
+            />
+            {option.text}
+          </Option>
         ))}
-      </OptionsContainer>
-
-      {error && <ErrorMessage>{error}</ErrorMessage>}
-
-      <SubmitButton
-        onClick={handleSubmit}
-        disabled={selectedOption === null || isSubmitting}
-      >
-        {isSubmitting ? 'Submitting...' : 'Submit Answer'}
+      </OptionsGrid>
+      <SubmitButton onClick={handleSubmit} disabled={selectedOption === null}>
+        Submit
       </SubmitButton>
-    </QuestionContainer>
+    </PollContainer>
   );
 }
 
